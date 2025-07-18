@@ -121,6 +121,7 @@ impl EventHandler for ParticleLifeGame {
                 ParticleType::Red => Color::RED,
                 ParticleType::Blue => Color::BLUE,
                 ParticleType::Green => Color::GREEN,
+                ParticleType::NeonPink => Color::new(1.0, 0.0, 0.5, 1.0), // Neon pink color
             };
             
             let circle = ggez::graphics::Mesh::new_circle(
@@ -150,9 +151,10 @@ impl EventHandler for ParticleLifeGame {
             let debug_text = format!(
                 "FPS: {}\nParticles: {}\nStatus: {}\nCursor: ({:.1}, {:.1})\n\
                  Interaction Matrix:\n\
-                 Red-Red: {:.2}\nRed-Blue: {:.2}\nRed-Green: {:.2}\n\
-                 Blue-Red: {:.2}\nBlue-Blue: {:.2}\nBlue-Green: {:.2}\n\
-                 Green-Red: {:.2}\nGreen-Blue: {:.2}\nGreen-Green: {:.2}\n\
+                 Red-Red: {:.2}\nRed-Blue: {:.2}\nRed-Green: {:.2}\nRed-Pink: {:.2}\n\
+                 Blue-Red: {:.2}\nBlue-Blue: {:.2}\nBlue-Green: {:.2}\nBlue-Pink: {:.2}\n\
+                 Green-Red: {:.2}\nGreen-Blue: {:.2}\nGreen-Green: {:.2}\nGreen-Pink: {:.2}\n\
+                 Pink-Red: {:.2}\nPink-Blue: {:.2}\nPink-Green: {:.2}\nPink-Pink: {:.2}\n\
                  Selected Param: {}",
                 self.current_fps, 
                 self.world.particle_count(), 
@@ -162,12 +164,19 @@ impl EventHandler for ParticleLifeGame {
                 matrix.red_red,
                 matrix.red_blue,
                 matrix.red_green,
+                matrix.red_pink,
                 matrix.blue_red,
                 matrix.blue_blue,
                 matrix.blue_green,
+                matrix.blue_pink,
                 matrix.green_red,
                 matrix.green_blue,
                 matrix.green_green,
+                matrix.green_pink,
+                matrix.pink_red,
+                matrix.pink_blue,
+                matrix.pink_green,
+                matrix.pink_pink,
                 match self.selected_param {
                     Some(0) => "Red-Red",
                     Some(1) => "Red-Blue",
@@ -201,9 +210,10 @@ impl EventHandler for ParticleLifeGame {
         "SPACE: Pause/Resume\n\
          R: Reset\n\
          D: Toggle Debug\n\
-         1-4: Load Presets\n\
+         1-6: Load Presets\n\
              ESC: Exit\n\
              Left Click: Add Red Particles\n\
+             Shift + Left Click: Add Neon Pink Particles\n\
              Right Click: Add Blue Particles\n\
              Middle Click: Add Green Particles\n\
              F1-F9: Select Interaction Param\n\
@@ -254,6 +264,10 @@ impl EventHandler for ParticleLifeGame {
             Some(KeyCode::Key5) => {
                 self.world.load_preset(5);
                 println!("Loaded preset 5");
+            }
+            Some(KeyCode::Key6) => {
+                self.world.load_preset(6);
+                println!("Loaded preset 6");
             }
             Some(KeyCode::F1) => {
                 self.selected_param = Some(0);
@@ -310,11 +324,17 @@ impl EventHandler for ParticleLifeGame {
         Ok(())
     }
     
-    fn mouse_button_down_event(&mut self, _ctx: &mut Context, button: MouseButton, x: f32, y: f32) -> GameResult {
+    fn mouse_button_down_event(&mut self, ctx: &mut Context, button: MouseButton, x: f32, y: f32) -> GameResult {
         self.cursor_pos = Vec2::new(x, y);
         
         let particle_type = match button {
-            MouseButton::Left => ParticleType::Red,
+            MouseButton::Left => {
+                if ctx.keyboard.is_key_pressed(KeyCode::LShift) || ctx.keyboard.is_key_pressed(KeyCode::RShift) {
+                    ParticleType::NeonPink
+                } else {
+                    ParticleType::Red
+                }
+            }
             MouseButton::Right => ParticleType::Blue,
             MouseButton::Middle => ParticleType::Green,
             _ => return Ok(()),

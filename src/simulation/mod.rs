@@ -250,6 +250,7 @@ impl World {
             3 => self.create_preset_3(false),
             4 => self.create_preset_4(),
             5 => self.create_preset_5(),
+            6 => self.create_preset_6(),
             _ => {}
         }
     }
@@ -442,14 +443,75 @@ impl World {
             red_red: -0.8,    // Strong repulsion - Red cores spread out
             red_blue: 0.9,    // Strong attraction - Blue orbits Red
             red_green: 0.1,   // Weak attraction - Green slightly drawn to Red
+            red_pink: 0.0,    // No pink particles in this preset
             
             blue_red: 0.3,    // Moderate attraction - Blue wants to orbit Red
             blue_blue: -0.2,  // Weak repulsion - Blue particles don't clump
             blue_green: -0.1, // Weak repulsion - Blue avoids Green slightly
+            blue_pink: 0.0,   // No pink particles in this preset
             
             green_red: 0.2,   // Weak attraction - Green forms bridges to Red
             green_blue: 0.4,  // Moderate attraction - Green connects to Blue
             green_green: -0.3, // Moderate repulsion - Green spreads out
+            green_pink: 0.0,  // No pink particles in this preset
+            
+            pink_red: 0.0,    // No pink particles in this preset
+            pink_blue: 0.0,   // No pink particles in this preset
+            pink_green: 0.0,  // No pink particles in this preset
+            pink_pink: 0.0,   // No pink particles in this preset
+        };
+    }
+    
+    fn create_preset_6(&mut self) {
+        let mut rng = rand::thread_rng();
+        
+        // Create 2000 particles with NeonPink included
+        for _ in 0..2000 {
+            let x = rng.gen_range(0.0..self.width);
+            let y = rng.gen_range(0.0..self.height);
+            
+            // Distribute particles: 30% Red, 30% Blue, 20% Green, 20% NeonPink
+            let particle_type = match rng.gen_range(0..100) {
+                0..30 => ParticleType::Red,
+                30..60 => ParticleType::Blue,
+                60..80 => ParticleType::Green,
+                _ => ParticleType::NeonPink,
+            };
+            
+            // Minimal initial velocity for stable formations
+            let vel_x = rng.gen_range(-10.0..10.0);
+            let vel_y = rng.gen_range(-10.0..10.0);
+            
+            self.add_particle(Particle::new(
+                Vec2::new(x, y),
+                Vec2::new(vel_x, vel_y),
+                particle_type,
+                1.0,
+                3.0,
+            ));
+        }
+        
+        // Set custom interaction matrix for NeonPink
+        self.interaction_matrix = InteractionMatrix {
+            red_red: -0.3,
+            red_blue: 0.2,
+            red_green: -0.1,
+            red_pink: 0.8,   // Strong attraction to NeonPink
+            
+            blue_red: 0.2,
+            blue_blue: 0.1,
+            blue_green: 0.05,
+            blue_pink: -0.7, // Strong repulsion from NeonPink
+            
+            green_red: -0.1,
+            green_blue: 0.05,
+            green_green: -0.3,
+            green_pink: 0.5, // Moderate attraction to NeonPink
+            
+            pink_red: 0.8,   // Strong attraction to Red
+            pink_blue: -0.7, // Strong repulsion from Blue
+            pink_green: 0.5, // Moderate attraction to Green
+            pink_pink: -0.9, // Very strong repulsion between NeonPink particles
         };
     }
 }
