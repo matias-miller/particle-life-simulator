@@ -11,6 +11,7 @@ pub use interaction_matrix::InteractionMatrix;
 pub use self::quadtree::{Bounds, QuadTree};
 
 const INTERACTION_RADIUS: f32 = 100.0;
+const INTERACTION_RADIUS_SQUARED: f32 = INTERACTION_RADIUS * INTERACTION_RADIUS;
 const COLLISION_DAMPING: f32 = 0.8; // Energy loss during collision
 
 pub struct World {
