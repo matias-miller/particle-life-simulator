@@ -103,9 +103,14 @@ impl World {
                 local_forces[i] += force;
                 local_forces[j] -= force;
                 
-                // Record collisions to process later
-                if (p1.position - self.particles[j].position).length() < 
-                   (p1.radius + self.particles[j].radius) {
+                // Record collisions to process later (using squared distance for efficiency)
+                let dx = p1.position.x - self.particles[j].position.x;
+                let dy = p1.position.y - self.particles[j].position.y;
+                let distance_sq = dx * dx + dy * dy;
+                let min_distance = p1.radius + self.particles[j].radius;
+                let min_distance_sq = min_distance * min_distance;
+                
+                if distance_sq < min_distance_sq {
                     collisions.lock().unwrap().push((i, j));
                 }
             }
@@ -153,50 +158,18 @@ impl World {
             // Apply damping
             particle.velocity *= 0.99;
         }
-        
-        // Update particles and handle boundaries
-        for i in 0..self.particles.len() {
-            let mut particle = self.particles[i].clone();
-            
-            // Apply force
-            particle.velocity += forces[i] * dt;
-            
-            // Update position
-            particle.position += particle.velocity * dt;
-            
-            // Handle boundary collision
-            if particle.position.x - particle.radius < 0.0 {
-                particle.position.x = particle.radius;
-                particle.velocity.x *= -COLLISION_DAMPING;
-            } else if particle.position.x + particle.radius > self.width {
-                particle.position.x = self.width - particle.radius;
-                particle.velocity.x *= -COLLISION_DAMPING;
-            }
-            
-            if particle.position.y - particle.radius < 0.0 {
-                particle.position.y = particle.radius;
-                particle.velocity.y *= -COLLISION_DAMPING;
-            } else if particle.position.y + particle.radius > self.height {
-                particle.position.y = self.height - particle.radius;
-                particle.velocity.y *= -COLLISION_DAMPING;
-            }
-            
-            // Apply damping
-            particle.velocity *= 0.99;
-            
-            // Update the particle in the vector
-            self.particles[i] = particle;
-        }
     }
     
     fn check_particle_collision(&mut self, i: usize, j: usize) {
         let dx = self.particles[i].position.x - self.particles[j].position.x;
         let dy = self.particles[i].position.y - self.particles[j].position.y;
-        let distance = (dx * dx + dy * dy).sqrt();
+        let distance_sq = dx * dx + dy * dy;
         
         let min_distance = self.particles[i].radius + self.particles[j].radius;
+        let min_distance_sq = min_distance * min_distance;
         
-        if distance < min_distance {
+        if distance_sq < min_distance_sq {
+            let distance = distance_sq.sqrt();
             // Collision normal
             let nx = dx / distance;
             let ny = dy / distance;
@@ -239,19 +212,28 @@ impl World {
         
         let dx = p2.position.x - p1.position.x;
         let dy = p2.position.y - p1.position.y;
-        let distance = (dx * dx + dy * dy).sqrt();
+        let distance_sq = dx * dx + dy * dy;
         
-        // No interaction if too far
-        if distance > INTERACTION_RADIUS {
+        // No interaction if too far (using squared distance for efficiency)
+        if distance_sq > INTERACTION_RADIUS_SQUARED {
             return Vec2::new(0.0, 0.0);
         }
+        
+        // Calculate actual distance only if needed
+        // Get force strength from interaction matrix
+        let force_strength = self.interaction_matrix.get_force(p1.particle_type, p2.particle_type);
+        
+        // Skip force calculation if strength is zero
+        if force_strength == 0.0 {
+            return Vec2::new(0.0, 0.0);
+        }
+        
+        // Calculate actual distance only if needed
+        let distance = distance_sq.sqrt();
         
         // Normalized direction
         let nx = dx / distance;
         let ny = dy / distance;
-        
-        // Get force strength from interaction matrix
-        let force_strength = self.interaction_matrix.get_force(p1.particle_type, p2.particle_type);
         
         // Scale force by distance (stronger when closer)
         let force_magnitude = force_strength * (1.0 - distance / INTERACTION_RADIUS);
