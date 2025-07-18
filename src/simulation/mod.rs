@@ -2,9 +2,13 @@ use crate::particle::Particle;
 use crate::particle::ParticleType;
 use crate::utils::math::Vec2;
 use rand::Rng;
+use rayon::prelude::*;
+use std::sync::{Arc, Mutex};
 
 pub mod interaction_matrix;
+mod quadtree;
 pub use interaction_matrix::InteractionMatrix;
+pub use self::quadtree::{Bounds, QuadTree};
 
 const INTERACTION_RADIUS: f32 = 100.0;
 const COLLISION_DAMPING: f32 = 0.8; // Energy loss during collision
@@ -14,6 +18,7 @@ pub struct World {
     width: f32,
     height: f32,
     interaction_matrix: InteractionMatrix,
+    quad_tree: QuadTree,
 }
 
 impl World {
@@ -23,6 +28,15 @@ impl World {
             width,
             height,
             interaction_matrix: InteractionMatrix::default(),
+            quad_tree: QuadTree::new(
+                Bounds {
+                    x: 0.0,
+                    y: 0.0,
+                    width,
+                    height,
+                },
+                0,
+            ),
         }
     }
     
@@ -55,25 +69,88 @@ impl World {
     }
     
     pub fn update(&mut self, dt: f32) {
-        // Calculate forces
-        let mut forces = vec![Vec2::new(0.0, 0.0); self.particles.len()];
-        
-        // Interaction and collision detection
-        for i in 0..self.particles.len() {
-            for j in (i+1)..self.particles.len() {
-                let interaction_force = self.calculate_interaction_force(i, j);
+        // Rebuild quad tree
+        self.quad_tree.clear();
+        for (i, particle) in self.particles.iter().enumerate() {
+            self.quad_tree.insert(i, particle.position);
+        }
+
+        // Calculate forces in parallel
+        let forces = Arc::new(Mutex::new(vec![Vec2::new(0.0, 0.0); self.particles.len()]));
+        let collisions = Arc::new(Mutex::new(Vec::new()));
+
+        // Process particles in parallel chunks
+        self.particles.par_iter().enumerate().for_each(|(i, p1)| {
+            let mut local_forces = vec![Vec2::new(0.0, 0.0); self.particles.len()];
+            
+            // Query nearby particles from quad tree
+            let mut neighbors = Vec::new();
+            let query_bounds = Bounds {
+                x: p1.position.x - INTERACTION_RADIUS,
+                y: p1.position.y - INTERACTION_RADIUS,
+                width: INTERACTION_RADIUS * 2.0,
+                height: INTERACTION_RADIUS * 2.0,
+            };
+            self.quad_tree.query(&query_bounds, &mut neighbors);
+
+            for &j in &neighbors {
+                if i == j {
+                    continue;
+                }
                 
-                // Apply interaction forces
-                forces[i] += interaction_force;
-                forces[j] -= interaction_force;
+                let force = self.calculate_interaction_force(i, j);
+                local_forces[i] += force;
+                local_forces[j] -= force;
+                
+                // Record collisions to process later
+                if (p1.position - self.particles[j].position).length() < 
+                   (p1.radius + self.particles[j].radius) {
+                    collisions.lock().unwrap().push((i, j));
+                }
             }
+
+            // Merge local forces into global forces
+            let mut global_forces = forces.lock().unwrap();
+            for (idx, force) in local_forces.into_iter().enumerate() {
+                global_forces[idx] += force;
+            }
+        });
+
+        let forces = Arc::try_unwrap(forces).unwrap().into_inner().unwrap();
+        let collisions = Arc::try_unwrap(collisions).unwrap().into_inner().unwrap();
+
+        // Process collisions sequentially
+        for (i, j) in collisions {
+            self.check_particle_collision(i, j);
         }
         
-        // Collision detection (separate pass to avoid mutable borrow issues)
-        for i in 0..self.particles.len() {
-            for j in (i+1)..self.particles.len() {
-                self.check_particle_collision(i, j);
+        // Update particle positions and velocities
+        for (i, particle) in self.particles.iter_mut().enumerate() {
+            // Apply force
+            particle.velocity += forces[i] * dt;
+            
+            // Update position
+            particle.position += particle.velocity * dt;
+            
+            // Handle boundary collision
+            if particle.position.x - particle.radius < 0.0 {
+                particle.position.x = particle.radius;
+                particle.velocity.x *= -COLLISION_DAMPING;
+            } else if particle.position.x + particle.radius > self.width {
+                particle.position.x = self.width - particle.radius;
+                particle.velocity.x *= -COLLISION_DAMPING;
             }
+            
+            if particle.position.y - particle.radius < 0.0 {
+                particle.position.y = particle.radius;
+                particle.velocity.y *= -COLLISION_DAMPING;
+            } else if particle.position.y + particle.radius > self.height {
+                particle.position.y = self.height - particle.radius;
+                particle.velocity.y *= -COLLISION_DAMPING;
+            }
+            
+            // Apply damping
+            particle.velocity *= 0.99;
         }
         
         // Update particles and handle boundaries
@@ -351,21 +428,21 @@ impl World {
     fn create_preset_5(&mut self) {
         let mut rng = rand::thread_rng();
         
-        // Create 10,000 particles
-        for _ in 0..10000 {
+        // Create 8,000 particles
+        for _ in 1..8000 {
             let x = rng.gen_range(0.0..self.width);
             let y = rng.gen_range(0.0..self.height);
             
-            // Randomly assign particle type (33% chance for each color)
-            let particle_type = match rng.gen_range(0..3) {
-                0 => ParticleType::Red,
-                1 => ParticleType::Blue,
+            // Weighted distribution: 40% Red, 35% Blue, 25% Green
+            let particle_type = match rng.gen_range(0..100) {
+                0..40 => ParticleType::Red,
+                40..75 => ParticleType::Blue,
                 _ => ParticleType::Green,
             };
             
-            // Add slight random initial velocity
-            let vel_x = rng.gen_range(-10.0..10.0);
-            let vel_y = rng.gen_range(-10.0..10.0);
+            // Minimal initial velocity for stable formations
+            let vel_x = rng.gen_range(-2.0..2.0);
+            let vel_y = rng.gen_range(-2.0..2.0);
             
             self.add_particle(Particle::new(
                 Vec2::new(x, y),
@@ -376,17 +453,20 @@ impl World {
             ));
         }
         
-        // Set specific interaction matrix for preset 5
+        // "Orbital Clusters" interaction matrix
+        // Red particles form cores, Blue orbit around Red, Green creates bridges
         self.interaction_matrix = InteractionMatrix {
-            red_red: -0.5,
-            red_blue: 0.7,
-            red_green: -0.3,
-            blue_red: 0.7,
-            blue_blue: -0.4,
-            blue_green: 0.6,
-            green_red: -0.3,
-            green_blue: 0.6,
-            green_green: -0.2,
+            red_red: -0.8,    // Strong repulsion - Red cores spread out
+            red_blue: 0.9,    // Strong attraction - Blue orbits Red
+            red_green: 0.1,   // Weak attraction - Green slightly drawn to Red
+            
+            blue_red: 0.3,    // Moderate attraction - Blue wants to orbit Red
+            blue_blue: -0.2,  // Weak repulsion - Blue particles don't clump
+            blue_green: -0.1, // Weak repulsion - Blue avoids Green slightly
+            
+            green_red: 0.2,   // Weak attraction - Green forms bridges to Red
+            green_blue: 0.4,  // Moderate attraction - Green connects to Blue
+            green_green: -0.3, // Moderate repulsion - Green spreads out
         };
     }
 }
