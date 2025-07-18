@@ -251,6 +251,10 @@ impl EventHandler for ParticleLifeGame {
                 self.world.load_preset(4);
                 println!("Loaded preset 4");
             }
+            Some(KeyCode::Key5) => {
+                self.world.load_preset(5);
+                println!("Loaded preset 5");
+            }
             Some(KeyCode::F1) => {
                 self.selected_param = Some(0);
                 println!("Selected Red-Red interaction");

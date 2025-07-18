@@ -189,6 +189,7 @@ impl World {
             2 => self.create_preset_2(false),
             3 => self.create_preset_3(false),
             4 => self.create_preset_4(),
+            5 => self.create_preset_5(),
             _ => {}
         }
     }
@@ -345,5 +346,47 @@ impl World {
                 3.0,
             ));
         }
+    }
+    
+    fn create_preset_5(&mut self) {
+        let mut rng = rand::thread_rng();
+        
+        // Create 10,000 particles
+        for _ in 0..10000 {
+            let x = rng.gen_range(0.0..self.width);
+            let y = rng.gen_range(0.0..self.height);
+            
+            // Randomly assign particle type (33% chance for each color)
+            let particle_type = match rng.gen_range(0..3) {
+                0 => ParticleType::Red,
+                1 => ParticleType::Blue,
+                _ => ParticleType::Green,
+            };
+            
+            // Add slight random initial velocity
+            let vel_x = rng.gen_range(-10.0..10.0);
+            let vel_y = rng.gen_range(-10.0..10.0);
+            
+            self.add_particle(Particle::new(
+                Vec2::new(x, y),
+                Vec2::new(vel_x, vel_y),
+                particle_type,
+                1.0,
+                2.0,
+            ));
+        }
+        
+        // Set specific interaction matrix for preset 5
+        self.interaction_matrix = InteractionMatrix {
+            red_red: -0.5,
+            red_blue: 0.7,
+            red_green: -0.3,
+            blue_red: 0.7,
+            blue_blue: -0.4,
+            blue_green: 0.6,
+            green_red: -0.3,
+            green_blue: 0.6,
+            green_green: -0.2,
+        };
     }
 }
