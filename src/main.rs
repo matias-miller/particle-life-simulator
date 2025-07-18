@@ -28,6 +28,7 @@ struct ParticleLifeGame {
     frame_count: u32,
     current_fps: u32,
     cursor_pos: Vec2,
+    selected_param: Option<usize>, // 0: red_red, 1: red_blue, 2: blue_red, 3: blue_blue
 }
 
 impl ParticleLifeGame {
@@ -46,6 +47,7 @@ impl ParticleLifeGame {
             frame_count: 0,
             current_fps: 0,
             cursor_pos: Vec2::ZERO,
+            selected_param: None,
         })
     }
     
@@ -63,6 +65,32 @@ impl ParticleLifeGame {
             1.0,
             3.0,
         ));
+    }
+    
+    fn adjust_interaction_param(&mut self, delta: f32) {
+        if let Some(param) = self.selected_param {
+            let matrix = self.world.get_interaction_matrix_mut();
+            match param {
+                0 => matrix.red_red += delta,
+                1 => matrix.red_blue += delta,
+                2 => matrix.blue_red += delta,
+                3 => matrix.blue_blue += delta,
+                _ => {}
+            }
+            println!("Adjusted interaction parameter {} by {:.2}", param, delta);
+        }
+    }
+    
+    fn adjust_red_blue_param(&mut self, delta: f32) {
+        let matrix = self.world.get_interaction_matrix_mut();
+        matrix.red_blue += delta;
+        println!("Red-Blue interaction adjusted by {:.2} to {:.2}", delta, matrix.red_blue);
+    }
+    
+    fn adjust_blue_red_param(&mut self, delta: f32) {
+        let matrix = self.world.get_interaction_matrix_mut();
+        matrix.blue_red += delta;
+        println!("Blue-Red interaction adjusted by {:.2} to {:.2}", delta, matrix.blue_red);
     }
 }
 
@@ -115,13 +143,29 @@ impl EventHandler for ParticleLifeGame {
         
         // Draw debug info
         if self.show_debug {
+            let matrix = self.world.get_interaction_matrix();
             let debug_text = format!(
-                "FPS: {}\nParticles: {}\nStatus: {}\nCursor: ({:.1}, {:.1})",
+                "FPS: {}\nParticles: {}\nStatus: {}\nCursor: ({:.1}, {:.1})\n\
+                 Interaction Matrix:\n\
+                 Red-Red: {:.2}\nRed-Blue: {:.2}\nBlue-Red: {:.2}\nBlue-Blue: {:.2}\n\
+                 Selected Param: {}",
                 self.current_fps, 
                 self.world.particle_count(), 
                 if self.paused { "PAUSED" } else { "RUNNING" },
                 self.cursor_pos.x, 
-                self.cursor_pos.y
+                self.cursor_pos.y,
+                matrix.red_red,
+                matrix.red_blue,
+                matrix.blue_red,
+                matrix.blue_blue,
+                match self.selected_param {
+                    Some(0) => "Red-Red",
+                    Some(1) => "Red-Blue",
+                    Some(2) => "Blue-Red",
+                    Some(3) => "Blue-Blue",
+                    Some(_) => "Invalid",
+                    None => "None",
+                }
             );
             
             let text = Text::new(debug_text);
@@ -136,9 +180,14 @@ impl EventHandler for ParticleLifeGame {
              1-2: Load Presets\n\
              ESC: Exit\n\
              Left Click: Add Red Particles\n\
-             Right Click: Add Blue Particles"
+             Right Click: Add Blue Particles\n\
+             F1-F4: Select Interaction Param\n\
+             Numpad +/-: Adjust Selected Param\n\
+             =/- Keys: Adjust Selected Param\n\
+             Q/A: Red-Blue Interaction +/-\n\
+             W/S: Blue-Red Interaction +/-"
         );
-        canvas.draw(&controls_text, DrawParam::default().dest(Vec2::new(10.0, WINDOW_HEIGHT - 150.0)).color(Color::WHITE));
+        canvas.draw(&controls_text, DrawParam::default().dest(Vec2::new(10.0, WINDOW_HEIGHT - 260.0)).color(Color::WHITE));
         
         canvas.finish(ctx)?;
         
@@ -170,6 +219,48 @@ impl EventHandler for ParticleLifeGame {
             Some(KeyCode::Key2) => {
                 self.world.load_preset(2);
                 println!("Loaded preset 2");
+            }
+            Some(KeyCode::F1) => {
+                self.selected_param = Some(0);
+                println!("Selected Red-Red interaction");
+            }
+            Some(KeyCode::F2) => {
+                self.selected_param = Some(1);
+                println!("Selected Red-Blue interaction");
+            }
+            Some(KeyCode::F3) => {
+                self.selected_param = Some(2);
+                println!("Selected Blue-Red interaction");
+            }
+            Some(KeyCode::F4) => {
+                self.selected_param = Some(3);
+                println!("Selected Blue-Blue interaction");
+            }
+            Some(KeyCode::NumpadAdd) => {
+                self.adjust_interaction_param(0.05);
+            }
+            Some(KeyCode::NumpadSubtract) => {
+                self.adjust_interaction_param(-0.05);
+            }
+            Some(KeyCode::Equals) => {
+                self.adjust_interaction_param(0.05);
+            }
+            Some(KeyCode::Minus) => {
+                self.adjust_interaction_param(-0.05);
+            }
+            // Direct Red-Blue interaction controls
+            Some(KeyCode::Q) => {
+                self.adjust_red_blue_param(0.05);
+            }
+            Some(KeyCode::A) => {
+                self.adjust_red_blue_param(-0.05);
+            }
+            // Direct Blue-Red interaction controls
+            Some(KeyCode::W) => {
+                self.adjust_blue_red_param(0.05);
+            }
+            Some(KeyCode::S) => {
+                self.adjust_blue_red_param(-0.05);
             }
             _ => {}
         }

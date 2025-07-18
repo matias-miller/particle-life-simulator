@@ -2,15 +2,17 @@ use crate::particle::Particle;
 use crate::particle::ParticleType;
 use crate::utils::math::Vec2;
 
+pub mod interaction_matrix;
+pub use interaction_matrix::InteractionMatrix;
+
 const INTERACTION_RADIUS: f32 = 100.0;
-const ATTRACTION_STRENGTH: f32 = 0.1;
-const REPULSION_STRENGTH: f32 = 0.2;
 const COLLISION_DAMPING: f32 = 0.8; // Energy loss during collision
 
 pub struct World {
     particles: Vec<Particle>,
     width: f32,
     height: f32,
+    interaction_matrix: InteractionMatrix,
 }
 
 impl World {
@@ -19,7 +21,20 @@ impl World {
             particles: Vec::new(),
             width,
             height,
+            interaction_matrix: InteractionMatrix::default(),
         }
+    }
+    
+    pub fn set_interaction_matrix(&mut self, matrix: InteractionMatrix) {
+        self.interaction_matrix = matrix;
+    }
+    
+    pub fn get_interaction_matrix(&self) -> InteractionMatrix {
+        self.interaction_matrix
+    }
+    
+    pub fn get_interaction_matrix_mut(&mut self) -> &mut InteractionMatrix {
+        &mut self.interaction_matrix
     }
     
     pub fn add_particle(&mut self, particle: Particle) {
@@ -156,24 +171,13 @@ impl World {
         let nx = dx / distance;
         let ny = dy / distance;
         
-        // Different interaction rules based on particle types
-        match (p1.particle_type, p2.particle_type) {
-            (ParticleType::Red, ParticleType::Red) => {
-                // Red-Red: Slight repulsion
-                let force_magnitude = -REPULSION_STRENGTH * (1.0 - distance / INTERACTION_RADIUS);
-                Vec2::new(nx * force_magnitude, ny * force_magnitude)
-            },
-            (ParticleType::Blue, ParticleType::Blue) => {
-                // Blue-Blue: Slight attraction
-                let force_magnitude = ATTRACTION_STRENGTH * (1.0 - distance / INTERACTION_RADIUS);
-                Vec2::new(nx * force_magnitude, ny * force_magnitude)
-            },
-            (ParticleType::Red, ParticleType::Blue) | (ParticleType::Blue, ParticleType::Red) => {
-                // Red-Blue: Strong attraction
-                let force_magnitude = ATTRACTION_STRENGTH * 1.5 * (1.0 - distance / INTERACTION_RADIUS);
-                Vec2::new(nx * force_magnitude, ny * force_magnitude)
-            }
-        }
+        // Get force strength from interaction matrix
+        let force_strength = self.interaction_matrix.get_force(p1.particle_type, p2.particle_type);
+        
+        // Scale force by distance (stronger when closer)
+        let force_magnitude = force_strength * (1.0 - distance / INTERACTION_RADIUS);
+        
+        Vec2::new(nx * force_magnitude, ny * force_magnitude)
     }
     
     pub fn load_preset(&mut self, preset: u32) {
