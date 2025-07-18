@@ -174,10 +174,10 @@ impl EventHandler for ParticleLifeGame {
         
         // Draw controls
         let controls_text = Text::new(
-            "SPACE: Pause/Resume\n\
-             R: Reset\n\
-             D: Toggle Debug\n\
-             1-2: Load Presets\n\
+        "SPACE: Pause/Resume\n\
+         R: Reset\n\
+         D: Toggle Debug\n\
+         1-3: Load Presets\n\
              ESC: Exit\n\
              Left Click: Add Red Particles\n\
              Right Click: Add Blue Particles\n\
@@ -219,6 +219,10 @@ impl EventHandler for ParticleLifeGame {
             Some(KeyCode::Key2) => {
                 self.world.load_preset(2);
                 println!("Loaded preset 2");
+            }
+            Some(KeyCode::Key3) => {
+                self.world.load_preset(3);
+                println!("Loaded preset 3");
             }
             Some(KeyCode::F1) => {
                 self.selected_param = Some(0);

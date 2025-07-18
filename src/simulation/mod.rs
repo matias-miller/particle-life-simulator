@@ -1,6 +1,7 @@
 use crate::particle::Particle;
 use crate::particle::ParticleType;
 use crate::utils::math::Vec2;
+use rand::Rng;
 
 pub mod interaction_matrix;
 pub use interaction_matrix::InteractionMatrix;
@@ -186,6 +187,7 @@ impl World {
         match preset {
             1 => self.create_preset_1(),
             2 => self.create_preset_2(),
+            3 => self.create_preset_3(),
             _ => {}
         }
     }
@@ -242,6 +244,29 @@ impl World {
                     2.0,
                 ));
             }
+        }
+    }
+    
+    fn create_preset_3(&mut self) {
+        let mut rng = rand::thread_rng();
+        
+        for _ in 0..2000 {
+            let x = rng.gen_range(0.0..self.width);
+            let y = rng.gen_range(0.0..self.height);
+            
+            let particle_type = if rng.gen_bool(0.5) {
+                ParticleType::Red
+            } else {
+                ParticleType::Blue
+            };
+            
+            self.add_particle(Particle::new(
+                Vec2::new(x, y),
+                Vec2::new(0.0, 0.0),
+                particle_type,
+                1.0,
+                2.0,
+            ));
         }
     }
 }
