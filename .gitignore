@@ -1,0 +1,25 @@
+# Rust specific
+/target
+**/*.rs.bk
+Cargo.lock
+
+# macOS specific
+.DS_Store
+
+# VSCode
+.vscode/
+
+# IntelliJ
+.idea/
+*.iml
+
+# Compiled files
+*.exe
+*.out
+*.app
+
+# Logs
+*.log
+
+# Environment files
+.env

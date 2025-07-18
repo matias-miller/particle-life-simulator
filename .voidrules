@@ -1,0 +1,311 @@
+# Particle Life Game - Rust Development Rules
+
+## Project Vision
+Create a mesmerizing, high-performance particle life simulation that demonstrates emergent behavior through simple rules, with a primary focus on developing a rich, interactive system of red and blue particles. The game should explore how simple interaction rules between two distinct particle types can lead to complex, beautiful behaviors. The implementation will be visually stunning, scientifically interesting, and performant enough to handle thousands of particles in real-time.
+
+## Red and Blue Particle Interaction
+### Primary Experimental Focus
+- **Particle Types**: 
+  - Red Particles
+  - Blue Particles
+
+### Interaction Goals
+- Develop nuanced interaction rules between red and blue particles
+- Explore emergence through simple, configurable attraction/repulsion mechanisms
+- Create visually compelling behaviors that showcase complexity from simplicity
+
+### Interaction Rule Design
+- Define attraction/repulsion strengths between:
+  - Red-Red interactions
+  - Blue-Blue interactions
+  - Red-Blue interactions
+- Implement distance-dependent interaction rules
+- Allow dynamic configuration of interaction parameters
+- Visualize interactions through color intensity, particle movement, and trails
+
+### Experimental Parameters
+- **Interaction Distance**: Configurable minimum and maximum interaction ranges
+- **Force Multipliers**: 
+  - Red-Red attraction/repulsion strength
+  - Blue-Blue attraction/repulsion strength
+  - Red-Blue attraction/repulsion strength
+- **Velocity Dampening**: Control particle movement stability
+=======
+
+## Core Philosophy
+
+**Performance First**: Every line of code should consider performance implications. Particle systems are computationally intensive - optimize early and often.
+
+**Emergent Beauty**: Focus on creating simple rules that lead to complex, beautiful behaviors. The magic is in the emergent patterns, not complex individual particle logic.
+
+**Rust Zen**: Embrace Rust's strengths - memory safety, zero-cost abstractions, and fearless concurrency. Let the borrow checker guide you to better architecture.
+
+## Rust-Specific Guidelines
+
+### Memory Management
+- **Prefer Stack Allocation**: Use arrays and vectors over heap allocations where possible
+- **Pool Resources**: Pre-allocate particle pools to avoid runtime allocation
+- **RAII Pattern**: Use Drop trait for cleanup of GPU resources, file handles, etc.
+- **Avoid Cloning**: Use references and borrows instead of cloning large data structures
+
+### Performance Patterns
+- **SIMD Operations**: Use `std::simd` or libraries like `nalgebra` for vectorized math
+- **Batch Processing**: Process particles in chunks for better cache locality
+- **Avoid Bounds Checking**: Use `unsafe` blocks judiciously for hot paths after proving safety
+- **Profile-Guided Optimization**: Use `cargo flamegraph` and `perf` to identify bottlenecks
+
+### Concurrency
+- **Rayon for Parallelism**: Use `rayon` for data-parallel operations on particle collections
+- **Lock-Free When Possible**: Prefer atomic operations over mutexes for shared state
+- **Thread-Local Storage**: Use thread-local particle buffers to reduce contention
+- **Work-Stealing**: Let rayon handle work distribution across cores
+
+## Code Organization
+
+### Module Structure
+```
+src/
+├── main.rs              # Entry point and main loop
+├── particle/
+│   ├── mod.rs          # Particle system exports
+│   ├── types.rs        # Particle struct and enums
+│   ├── physics.rs      # Physics calculations
+│   ├── rules.rs        # Interaction rules
+│   └── pool.rs         # Particle pool management
+├── rendering/
+│   ├── mod.rs          # Rendering system exports
+│   ├── gpu.rs          # GPU resource management
+│   ├── shaders.rs      # Shader compilation and management
+│   └── instanced.rs    # Instanced rendering for particles
+├── simulation/
+│   ├── mod.rs          # Simulation exports
+│   ├── world.rs        # World state management
+│   ├── spatial.rs      # Spatial partitioning (quadtree/grid)
+│   └── integration.rs  # Numerical integration methods
+├── ui/
+│   ├── mod.rs          # UI exports
+│   ├── imgui_impl.rs   # ImGui integration
+│   └── controls.rs     # Simulation controls
+└── utils/
+    ├── mod.rs          # Utility exports
+    ├── math.rs         # Math utilities
+    └── config.rs       # Configuration management
+```
+
+### Naming Conventions
+- **Types**: `PascalCase` (e.g., `ParticleType`, `InteractionRule`)
+- **Functions**: `snake_case` (e.g., `update_particles`, `calculate_forces`)
+- **Constants**: `SCREAMING_SNAKE_CASE` (e.g., `MAX_PARTICLES`, `PHYSICS_TIMESTEP`)
+- **GPU Resources**: Prefix with context (e.g., `particle_buffer`, `compute_shader`)
+
+## Particle System Design
+
+### Core Particle Properties
+```rust
+#[derive(Copy, Clone, Debug)]
+#[repr(C)] // For GPU buffer compatibility
+pub struct Particle {
+    pub position: Vec2,
+    pub velocity: Vec2,
+    pub particle_type: ParticleType,
+    pub mass: f32,
+    pub radius: f32,
+    pub color: Color,
+}
+```
+
+### Interaction Rules
+- **Simple Rules**: Each particle type has attraction/repulsion values to other types
+- **Range-Based**: Interactions have minimum and maximum effective distances
+- **Configurable**: Rules should be easily tweakable via configuration files
+- **Symmetric**: Consider whether interactions should be symmetric or asymmetric
+
+### Spatial Optimization
+- **Grid-Based**: Use uniform grid for O(1) neighbor finding
+- **Quadtree**: Alternative for non-uniform particle distributions
+- **Update Strategy**: Rebuild spatial structure every frame or incrementally update
+
+## Performance Targets
+
+### Benchmarks
+- **60 FPS**: Maintain 60 FPS with 10,000 particles on mid-range hardware
+- **120 FPS**: Target 120 FPS for VR-ready performance
+- **Memory Usage**: Keep total memory usage under 1GB
+- **Startup Time**: Load and initialize in under 2 seconds
+
+### Profiling Strategy
+- **Frame Time**: Track total frame time and break down by system
+- **Particle Count**: Test performance scaling with particle count
+- **GPU Usage**: Monitor GPU utilization and memory bandwidth
+- **CPU Cores**: Verify parallel scaling across available cores
+
+## Graphics and Rendering
+
+### Rendering Strategy
+- **Instanced Rendering**: Single draw call for all particles of same type
+- **Compute Shaders**: Move physics calculations to GPU when beneficial
+- **Level of Detail**: Reduce particle complexity at distance
+- **Occlusion Culling**: Skip particles outside view frustum
+
+### Visual Effects
+- **Trails**: Leave fading trails behind particles for visual interest
+- **Glow Effects**: Add subtle glow for attraction/repulsion visualization
+- **Color Coding**: Use color to indicate particle type, energy, or velocity
+- **Bloom**: Post-processing bloom for ethereal appearance
+
+## Configuration and Tweaking
+
+### Configuration System
+- **Hot Reload**: Support runtime configuration changes without restart
+- **Presets**: Ship with interesting preset configurations
+- **Serialization**: Save/load configurations to/from JSON or TOML
+- **Validation**: Validate configuration values and provide sensible defaults
+
+### Tweakable Parameters
+- **Interaction Strengths**: Attraction/repulsion force multipliers
+- **Distance Ranges**: Minimum/maximum interaction distances
+- **Particle Properties**: Mass, size, maximum velocity
+- **Simulation Parameters**: Time step, damping, world boundaries
+
+## Testing Strategy
+
+### Unit Tests
+- **Physics Functions**: Test force calculations with known inputs
+- **Spatial Structures**: Verify correct neighbor finding
+- **Configuration**: Test config loading and validation
+- **Math Utilities**: Test vector operations and numerical methods
+
+### Integration Tests
+- **Simulation Stability**: Verify system doesn't explode or freeze
+- **Performance Regression**: Automated performance benchmarks
+- **Visual Validation**: Screenshot comparison for rendering changes
+- **Memory Leaks**: Run long-duration tests to catch resource leaks
+
+### Benchmarks
+- **Criterion.rs**: Use for micro-benchmarks of hot functions
+- **Flame Graphs**: Generate flame graphs for performance analysis
+- **Memory Profiling**: Track memory allocation patterns
+- **GPU Profiling**: Use graphics debugging tools for GPU analysis
+
+## User Experience
+
+### Controls
+- **Intuitive**: Mouse to add particles, keyboard for presets
+- **Responsive**: Immediate feedback to user inputs
+- **Discoverable**: Clear visual indicators for interactive elements
+- **Accessible**: Consider colorblind-friendly color schemes
+
+### Visual Feedback
+- **Particle Addition**: Visual feedback when adding new particles
+- **Force Visualization**: Option to show force vectors
+- **Performance Metrics**: Optional FPS and particle count display
+- **Interaction Hints**: Visual cues for interactive elements
+
+## Development Workflow
+
+### Phase 1: Core Architecture (Week 1)
+- Set up basic Rust project structure
+- Implement basic particle struct and physics
+- Create simple renderer (CPU-based initially)
+- Establish basic game loop
+
+### Phase 2: Optimization (Week 2)
+- Implement spatial partitioning
+- Add basic parallelization with rayon
+- Profile and optimize hot paths
+- Add GPU rendering pipeline
+
+### Phase 3: Features (Week 3)
+- Implement interaction rules system
+- Add configuration system
+- Create preset configurations
+- Add visual effects and polish
+
+### Phase 4: Polish (Week 4)
+- Comprehensive testing and debugging
+- Performance optimization
+- UI improvements
+- Documentation and examples
+
+## Quality Gates
+
+### Performance Gates
+- No frame drops below 30 FPS with 1000 particles
+- Memory usage remains stable over 1-hour runs
+- CPU usage scales appropriately with particle count
+- GPU memory usage within hardware limits
+
+### Code Quality Gates
+- All unsafe blocks have safety comments
+- Critical paths have benchmark coverage
+- Public APIs have documentation
+- No clippy warnings on default settings
+
+## Dependencies
+
+### Core Dependencies
+- **winit**: Window management and input handling
+- **wgpu**: Modern graphics API abstraction
+- **rayon**: Data parallelism
+- **nalgebra**: Linear algebra operations
+- **serde**: Configuration serialization
+
+### Development Dependencies
+- **criterion**: Benchmarking framework
+- **proptest**: Property-based testing
+- **flamegraph**: Performance profiling
+- **pretty_env_logger**: Development logging
+
+## Anti-Patterns to Avoid
+
+### Performance Anti-Patterns
+- **Unnecessary Allocations**: Don't allocate in hot loops
+- **Fine-Grained Locking**: Avoid mutex contention in particle updates
+- **Redundant Calculations**: Cache expensive computations
+- **Synchronous GPU Operations**: Avoid blocking CPU on GPU completion
+
+### Code Anti-Patterns
+- **God Objects**: Keep particle systems modular and focused
+- **Premature Abstraction**: Don't abstract until patterns emerge
+- **Unsafe Abuse**: Only use unsafe when necessary and well-documented
+- **Configuration Hardcoding**: Make parameters configurable from the start
+
+## Success Metrics
+
+### Technical Success
+- Stable 60+ FPS with 10,000+ particles
+- Sub-second startup time
+- Responsive user interactions
+- Zero memory leaks over extended runs
+
+### User Success
+- Visually engaging emergent behaviors
+- Intuitive controls and immediate feedback
+- Discoverable and interesting presets
+- Smooth, mesmerizing visual experience
+
+## Future Enhancements
+
+### Potential Features
+- **3D Simulation**: Extend to 3D space for more complex behaviors
+- **Particle Types**: Add more particle types with unique behaviors
+- **Environmental Forces**: Add gravity wells, wind, barriers
+- **Recording**: Export animations as video or GIF
+- **Networking**: Multi-user collaborative simulations
+
+### Technical Improvements
+- **WebGPU**: Port to web for broader accessibility
+- **Vulkan**: Direct Vulkan backend for maximum performance
+- **CUDA**: GPU compute for physics calculations
+- **VR Support**: Immersive particle experience
+
+## Mantras
+
+- **"Make it fast, make it beautiful"** - Performance enables beauty
+- **"Emergent complexity from simple rules"** - Keep individual behaviors simple
+- **"Profile before optimizing"** - Measure twice, optimize once
+- **"Rust's ownership model is your friend"** - Let the borrow checker guide architecture
+- **"Real-time means real-time"** - Never sacrifice frame rate for features
+- **"Visual debugging is essential"** - Make the invisible visible for debugging
+
+Remember: The goal is to create a particle life simulation that demonstrates the beauty of emergence while showcasing Rust's performance capabilities. Every decision should serve both the visual experience and the technical excellence of the implementation.
