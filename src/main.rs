@@ -137,6 +137,15 @@ impl EventHandler for ParticleLifeGame {
         
         // Draw debug info
         if self.show_debug {
+            // Draw debug background
+            let debug_bg = ggez::graphics::Mesh::new_rectangle(
+                ctx,
+                ggez::graphics::DrawMode::fill(),
+                ggez::graphics::Rect::new(5.0, 5.0, 300.0, 300.0),
+                Color::new(0.0, 0.0, 0.0, 0.8),
+            )?;
+            canvas.draw(&debug_bg, DrawParam::default());
+
             let matrix = self.world.get_interaction_matrix();
             let debug_text = format!(
                 "FPS: {}\nParticles: {}\nStatus: {}\nCursor: ({:.1}, {:.1})\n\
@@ -178,6 +187,15 @@ impl EventHandler for ParticleLifeGame {
             canvas.draw(&text, DrawParam::default().dest(Vec2::new(10.0, 10.0)).color(Color::WHITE));
         }
         
+        // Draw controls background
+        let controls_bg = ggez::graphics::Mesh::new_rectangle(
+            ctx,
+            ggez::graphics::DrawMode::fill(),
+            ggez::graphics::Rect::new(5.0, WINDOW_HEIGHT - 270.0, 300.0, 260.0),
+            Color::new(0.0, 0.0, 0.0, 0.8),
+        )?;
+        canvas.draw(&controls_bg, DrawParam::default());
+
         // Draw controls
         let controls_text = Text::new(
         "SPACE: Pause/Resume\n\
