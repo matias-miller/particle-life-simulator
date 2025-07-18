@@ -34,8 +34,9 @@ impl ParticleLifeGame {
     fn new(_ctx: &mut Context) -> GameResult<Self> {
         let mut world = World::new(WINDOW_WIDTH, WINDOW_HEIGHT);
         
-        // Initialize with some default particles for demo
-        Self::add_demo_particles(&mut world);
+        // Load preset 1 automatically on application start
+        world.load_preset(1);
+        println!("Loaded preset 1 on application start");
         
         Ok(Self {
             world,
@@ -46,38 +47,6 @@ impl ParticleLifeGame {
             current_fps: 0,
             cursor_pos: Vec2::ZERO,
         })
-    }
-    
-    fn add_demo_particles(world: &mut World) {
-        // Red particles in center
-        for i in 0..50 {
-            let angle = (i as f32) * 0.1;
-            let radius = 100.0;
-            let x = WINDOW_WIDTH / 2.0 + angle.cos() * radius;
-            let y = WINDOW_HEIGHT / 2.0 + angle.sin() * radius;
-            
-            world.add_particle(Particle::new(
-                MyVec2::new(x, y),
-                MyVec2::new(0.0, 0.0),
-                ParticleType::Red,
-                1.0,
-                3.0,
-            ));
-        }
-        
-        // Blue particles scattered
-        for i in 0..30 {
-            let x = (i as f32 * 37.0) % WINDOW_WIDTH;
-            let y = (i as f32 * 73.0) % WINDOW_HEIGHT;
-            
-            world.add_particle(Particle::new(
-                MyVec2::new(x, y),
-                MyVec2::new(0.0, 0.0),
-                ParticleType::Blue,
-                1.0,
-                3.0,
-            ));
-        }
     }
     
     fn add_particle_at_cursor(&mut self, particle_type: ParticleType) {
@@ -184,8 +153,8 @@ impl EventHandler for ParticleLifeGame {
             }
             Some(KeyCode::R) => {
                 self.world.clear();
-                Self::add_demo_particles(&mut self.world);
-                println!("Simulation reset");
+                self.world.load_preset(1); // Reset loads preset 1
+                println!("Simulation reset to preset 1");
             }
             Some(KeyCode::D) => {
                 self.show_debug = !self.show_debug;
