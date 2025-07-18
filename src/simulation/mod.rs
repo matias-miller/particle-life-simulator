@@ -185,14 +185,15 @@ impl World {
         self.clear();
         
         match preset {
-            1 => self.create_preset_1(),
-            2 => self.create_preset_2(),
-            3 => self.create_preset_3(),
+            1 => self.create_preset_1(false),
+            2 => self.create_preset_2(false),
+            3 => self.create_preset_3(false),
+            4 => self.create_preset_4(),
             _ => {}
         }
     }
     
-    fn create_preset_1(&mut self) {
+    fn create_preset_1(&mut self, include_green: bool) {
         // Red and Blue particles in different regions
         for i in 0..100 {
             let angle = (i as f32) * 0.2;
@@ -220,20 +221,42 @@ impl World {
                 1.0,
                 3.0,
             ));
+            
+            // Add green particles in the center if requested
+            if include_green {
+                let x_green = self.width / 2.0 + (angle * 2.0).cos() * 50.0;
+                let y_green = self.height / 2.0 + (angle * 2.0).sin() * 50.0;
+                
+                self.add_particle(Particle::new(
+                    Vec2::new(x_green, y_green),
+                    Vec2::new(0.0, 0.0),
+                    ParticleType::Green,
+                    1.0,
+                    2.0,
+                ));
+            }
         }
     }
     
-    fn create_preset_2(&mut self) {
+    fn create_preset_2(&mut self, include_green: bool) {
         // Red and Blue particles in grid pattern
         for x in 0..20 {
             for y in 0..15 {
                 let px = (x as f32) * (self.width / 20.0);
                 let py = (y as f32) * (self.height / 15.0);
                 
-                let particle_type = if (x + y) % 2 == 0 {
-                    ParticleType::Red
+                let particle_type = if !include_green {
+                    if (x + y) % 2 == 0 {
+                        ParticleType::Red
+                    } else {
+                        ParticleType::Blue
+                    }
                 } else {
-                    ParticleType::Blue
+                    match (x + y) % 3 {
+                        0 => ParticleType::Red,
+                        1 => ParticleType::Blue,
+                        _ => ParticleType::Green,
+                    }
                 };
                 
                 self.add_particle(Particle::new(
@@ -247,17 +270,25 @@ impl World {
         }
     }
     
-    fn create_preset_3(&mut self) {
+    fn create_preset_3(&mut self, include_green: bool) {
         let mut rng = rand::thread_rng();
         
         for _ in 0..2000 {
             let x = rng.gen_range(0.0..self.width);
             let y = rng.gen_range(0.0..self.height);
             
-            let particle_type = if rng.gen_bool(0.5) {
-                ParticleType::Red
+            let particle_type = if include_green {
+                match rng.gen_range(0..3) {
+                    0 => ParticleType::Red,
+                    1 => ParticleType::Blue,
+                    _ => ParticleType::Green,
+                }
             } else {
-                ParticleType::Blue
+                if rng.gen_bool(0.5) {
+                    ParticleType::Red
+                } else {
+                    ParticleType::Blue
+                }
             };
             
             self.add_particle(Particle::new(
@@ -266,6 +297,52 @@ impl World {
                 particle_type,
                 1.0,
                 2.0,
+            ));
+        }
+    }
+    
+    fn create_preset_4(&mut self) {
+        // Green particles in the center with red and blue orbiting
+        for i in 0..100 {
+            let angle = (i as f32) * 0.2;
+            
+            // Green particles in the center
+            let x_green = self.width / 2.0 + angle.cos() * 50.0;
+            let y_green = self.height / 2.0 + angle.sin() * 50.0;
+            
+            // Red particles orbiting clockwise
+            let x_red = self.width / 2.0 + (angle * 2.0).cos() * 150.0;
+            let y_red = self.height / 2.0 + (angle * 2.0).sin() * 150.0;
+            
+            // Blue particles orbiting counter-clockwise
+            let x_blue = self.width / 2.0 + (angle * 2.0 + std::f32::consts::PI).cos() * 150.0;
+            let y_blue = self.height / 2.0 + (angle * 2.0 + std::f32::consts::PI).sin() * 150.0;
+            
+            // Add green particle
+            self.add_particle(Particle::new(
+                Vec2::new(x_green, y_green),
+                Vec2::new(0.0, 0.0),
+                ParticleType::Green,
+                1.0,
+                3.0,
+            ));
+            
+            // Add red particle
+            self.add_particle(Particle::new(
+                Vec2::new(x_red, y_red),
+                Vec2::new(0.0, 0.0),
+                ParticleType::Red,
+                1.0,
+                3.0,
+            ));
+            
+            // Add blue particle
+            self.add_particle(Particle::new(
+                Vec2::new(x_blue, y_blue),
+                Vec2::new(0.0, 0.0),
+                ParticleType::Blue,
+                1.0,
+                3.0,
             ));
         }
     }

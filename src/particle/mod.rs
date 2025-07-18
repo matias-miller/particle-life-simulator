@@ -4,6 +4,7 @@ use crate::utils::math::Vec2;
 pub enum ParticleType {
     Red,
     Blue,
+    Green,
 }
 
 #[derive(Debug, Clone)]
@@ -30,10 +31,12 @@ impl Particle {
             mass: match particle_type {
                 ParticleType::Red => mass,
                 ParticleType::Blue => mass * 1.2, // Slightly heavier blue particles
+                ParticleType::Green => mass * 0.8, // Lighter green particles
             },
             radius: match particle_type {
                 ParticleType::Red => radius,
                 ParticleType::Blue => radius * 1.1, // Slightly larger blue particles
+                ParticleType::Green => radius * 0.9, // Smaller green particles
             },
         }
     }

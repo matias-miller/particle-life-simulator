@@ -73,24 +73,17 @@ impl ParticleLifeGame {
             match param {
                 0 => matrix.red_red += delta,
                 1 => matrix.red_blue += delta,
-                2 => matrix.blue_red += delta,
-                3 => matrix.blue_blue += delta,
+                2 => matrix.red_green += delta,
+                3 => matrix.blue_red += delta,
+                4 => matrix.blue_blue += delta,
+                5 => matrix.blue_green += delta,
+                6 => matrix.green_red += delta,
+                7 => matrix.green_blue += delta,
+                8 => matrix.green_green += delta,
                 _ => {}
             }
             println!("Adjusted interaction parameter {} by {:.2}", param, delta);
         }
-    }
-    
-    fn adjust_red_blue_param(&mut self, delta: f32) {
-        let matrix = self.world.get_interaction_matrix_mut();
-        matrix.red_blue += delta;
-        println!("Red-Blue interaction adjusted by {:.2} to {:.2}", delta, matrix.red_blue);
-    }
-    
-    fn adjust_blue_red_param(&mut self, delta: f32) {
-        let matrix = self.world.get_interaction_matrix_mut();
-        matrix.blue_red += delta;
-        println!("Blue-Red interaction adjusted by {:.2} to {:.2}", delta, matrix.blue_red);
     }
 }
 
@@ -127,6 +120,7 @@ impl EventHandler for ParticleLifeGame {
             let color = match particle.particle_type {
                 ParticleType::Red => Color::RED,
                 ParticleType::Blue => Color::BLUE,
+                ParticleType::Green => Color::GREEN,
             };
             
             let circle = ggez::graphics::Mesh::new_circle(
@@ -147,7 +141,9 @@ impl EventHandler for ParticleLifeGame {
             let debug_text = format!(
                 "FPS: {}\nParticles: {}\nStatus: {}\nCursor: ({:.1}, {:.1})\n\
                  Interaction Matrix:\n\
-                 Red-Red: {:.2}\nRed-Blue: {:.2}\nBlue-Red: {:.2}\nBlue-Blue: {:.2}\n\
+                 Red-Red: {:.2}\nRed-Blue: {:.2}\nRed-Green: {:.2}\n\
+                 Blue-Red: {:.2}\nBlue-Blue: {:.2}\nBlue-Green: {:.2}\n\
+                 Green-Red: {:.2}\nGreen-Blue: {:.2}\nGreen-Green: {:.2}\n\
                  Selected Param: {}",
                 self.current_fps, 
                 self.world.particle_count(), 
@@ -156,13 +152,23 @@ impl EventHandler for ParticleLifeGame {
                 self.cursor_pos.y,
                 matrix.red_red,
                 matrix.red_blue,
+                matrix.red_green,
                 matrix.blue_red,
                 matrix.blue_blue,
+                matrix.blue_green,
+                matrix.green_red,
+                matrix.green_blue,
+                matrix.green_green,
                 match self.selected_param {
                     Some(0) => "Red-Red",
                     Some(1) => "Red-Blue",
-                    Some(2) => "Blue-Red",
-                    Some(3) => "Blue-Blue",
+                    Some(2) => "Red-Green",
+                    Some(3) => "Blue-Red",
+                    Some(4) => "Blue-Blue",
+                    Some(5) => "Blue-Green",
+                    Some(6) => "Green-Red",
+                    Some(7) => "Green-Blue",
+                    Some(8) => "Green-Green",
                     Some(_) => "Invalid",
                     None => "None",
                 }
@@ -177,15 +183,14 @@ impl EventHandler for ParticleLifeGame {
         "SPACE: Pause/Resume\n\
          R: Reset\n\
          D: Toggle Debug\n\
-         1-3: Load Presets\n\
+         1-4: Load Presets\n\
              ESC: Exit\n\
              Left Click: Add Red Particles\n\
              Right Click: Add Blue Particles\n\
-             F1-F4: Select Interaction Param\n\
+             Middle Click: Add Green Particles\n\
+             F1-F9: Select Interaction Param\n\
              Numpad +/-: Adjust Selected Param\n\
-             =/- Keys: Adjust Selected Param\n\
-             Q/A: Red-Blue Interaction +/-\n\
-             W/S: Blue-Red Interaction +/-"
+             =/- Keys: Adjust Selected Param"
         );
         canvas.draw(&controls_text, DrawParam::default().dest(Vec2::new(10.0, WINDOW_HEIGHT - 260.0)).color(Color::WHITE));
         
@@ -224,6 +229,10 @@ impl EventHandler for ParticleLifeGame {
                 self.world.load_preset(3);
                 println!("Loaded preset 3");
             }
+            Some(KeyCode::Key4) => {
+                self.world.load_preset(4);
+                println!("Loaded preset 4");
+            }
             Some(KeyCode::F1) => {
                 self.selected_param = Some(0);
                 println!("Selected Red-Red interaction");
@@ -238,7 +247,27 @@ impl EventHandler for ParticleLifeGame {
             }
             Some(KeyCode::F4) => {
                 self.selected_param = Some(3);
+                println!("Selected Blue-Red interaction");
+            }
+            Some(KeyCode::F5) => {
+                self.selected_param = Some(4);
                 println!("Selected Blue-Blue interaction");
+            }
+            Some(KeyCode::F6) => {
+                self.selected_param = Some(5);
+                println!("Selected Blue-Green interaction");
+            }
+            Some(KeyCode::F7) => {
+                self.selected_param = Some(6);
+                println!("Selected Green-Red interaction");
+            }
+            Some(KeyCode::F8) => {
+                self.selected_param = Some(7);
+                println!("Selected Green-Blue interaction");
+            }
+            Some(KeyCode::F9) => {
+                self.selected_param = Some(8);
+                println!("Selected Green-Green interaction");
             }
             Some(KeyCode::NumpadAdd) => {
                 self.adjust_interaction_param(0.05);
@@ -252,20 +281,7 @@ impl EventHandler for ParticleLifeGame {
             Some(KeyCode::Minus) => {
                 self.adjust_interaction_param(-0.05);
             }
-            // Direct Red-Blue interaction controls
-            Some(KeyCode::Q) => {
-                self.adjust_red_blue_param(0.05);
-            }
-            Some(KeyCode::A) => {
-                self.adjust_red_blue_param(-0.05);
-            }
-            // Direct Blue-Red interaction controls
-            Some(KeyCode::W) => {
-                self.adjust_blue_red_param(0.05);
-            }
-            Some(KeyCode::S) => {
-                self.adjust_blue_red_param(-0.05);
-            }
+
             _ => {}
         }
         
@@ -278,6 +294,7 @@ impl EventHandler for ParticleLifeGame {
         let particle_type = match button {
             MouseButton::Left => ParticleType::Red,
             MouseButton::Right => ParticleType::Blue,
+            MouseButton::Middle => ParticleType::Green,
             _ => return Ok(()),
         };
         
