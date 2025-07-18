@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 pub struct Vec2 {
     pub x: f32,
     pub y: f32,
@@ -9,16 +9,8 @@ impl Vec2 {
         Self { x, y }
     }
     
-    pub fn zero() -> Self {
-        Self { x: 0.0, y: 0.0 }
-    }
-    
     pub fn length(&self) -> f32 {
         (self.x * self.x + self.y * self.y).sqrt()
-    }
-    
-    pub fn length_squared(&self) -> f32 {
-        self.x * self.x + self.y * self.y
     }
     
     pub fn normalize(&self) -> Self {
@@ -29,24 +21,12 @@ impl Vec2 {
                 y: self.y / len,
             }
         } else {
-            Self::zero()
+            *self
         }
     }
     
-    pub fn dot(&self, other: &Self) -> f32 {
+    pub fn dot(&self, other: Vec2) -> f32 {
         self.x * other.x + self.y * other.y
-    }
-    
-    pub fn distance_to(&self, other: &Self) -> f32 {
-        let dx = self.x - other.x;
-        let dy = self.y - other.y;
-        (dx * dx + dy * dy).sqrt()
-    }
-    
-    pub fn distance_squared_to(&self, other: &Self) -> f32 {
-        let dx = self.x - other.x;
-        let dy = self.y - other.y;
-        dx * dx + dy * dy
     }
 }
 
@@ -61,6 +41,13 @@ impl std::ops::Add for Vec2 {
     }
 }
 
+impl std::ops::AddAssign for Vec2 {
+    fn add_assign(&mut self, other: Self) {
+        self.x += other.x;
+        self.y += other.y;
+    }
+}
+
 impl std::ops::Sub for Vec2 {
     type Output = Self;
     
@@ -69,6 +56,13 @@ impl std::ops::Sub for Vec2 {
             x: self.x - other.x,
             y: self.y - other.y,
         }
+    }
+}
+
+impl std::ops::SubAssign for Vec2 {
+    fn sub_assign(&mut self, other: Self) {
+        self.x -= other.x;
+        self.y -= other.y;
     }
 }
 
@@ -83,41 +77,9 @@ impl std::ops::Mul<f32> for Vec2 {
     }
 }
 
-impl std::ops::Div<f32> for Vec2 {
-    type Output = Self;
-    
-    fn div(self, scalar: f32) -> Self {
-        Self {
-            x: self.x / scalar,
-            y: self.y / scalar,
-        }
-    }
-}
-
-impl std::ops::AddAssign for Vec2 {
-    fn add_assign(&mut self, other: Self) {
-        self.x += other.x;
-        self.y += other.y;
-    }
-}
-
-impl std::ops::SubAssign for Vec2 {
-    fn sub_assign(&mut self, other: Self) {
-        self.x -= other.x;
-        self.y -= other.y;
-    }
-}
-
 impl std::ops::MulAssign<f32> for Vec2 {
     fn mul_assign(&mut self, scalar: f32) {
         self.x *= scalar;
         self.y *= scalar;
-    }
-}
-
-impl std::ops::DivAssign<f32> for Vec2 {
-    fn div_assign(&mut self, scalar: f32) {
-        self.x /= scalar;
-        self.y /= scalar;
     }
 }

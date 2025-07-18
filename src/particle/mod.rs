@@ -27,8 +27,14 @@ impl Particle {
             position,
             velocity,
             particle_type,
-            mass,
-            radius,
+            mass: match particle_type {
+                ParticleType::Red => mass,
+                ParticleType::Blue => mass * 1.2, // Slightly heavier blue particles
+            },
+            radius: match particle_type {
+                ParticleType::Red => radius,
+                ParticleType::Blue => radius * 1.1, // Slightly larger blue particles
+            },
         }
     }
 }

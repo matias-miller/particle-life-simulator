@@ -2,6 +2,11 @@ use crate::particle::Particle;
 use crate::particle::ParticleType;
 use crate::utils::math::Vec2;
 
+const INTERACTION_RADIUS: f32 = 100.0;
+const ATTRACTION_STRENGTH: f32 = 0.1;
+const REPULSION_STRENGTH: f32 = 0.2;
+const COLLISION_DAMPING: f32 = 0.8; // Energy loss during collision
+
 pub struct World {
     particles: Vec<Particle>,
     width: f32,
@@ -34,26 +39,140 @@ impl World {
     }
     
     pub fn update(&mut self, dt: f32) {
-        // Simple physics update - will be improved later
-        for particle in &mut self.particles {
+        // Calculate forces
+        let mut forces = vec![Vec2::new(0.0, 0.0); self.particles.len()];
+        
+        // Interaction and collision detection
+        for i in 0..self.particles.len() {
+            for j in (i+1)..self.particles.len() {
+                let interaction_force = self.calculate_interaction_force(i, j);
+                
+                // Apply interaction forces
+                forces[i] += interaction_force;
+                forces[j] -= interaction_force;
+            }
+        }
+        
+        // Collision detection (separate pass to avoid mutable borrow issues)
+        for i in 0..self.particles.len() {
+            for j in (i+1)..self.particles.len() {
+                self.check_particle_collision(i, j);
+            }
+        }
+        
+        // Update particles and handle boundaries
+        for i in 0..self.particles.len() {
+            let mut particle = self.particles[i].clone();
+            
+            // Apply force
+            particle.velocity += forces[i] * dt;
+            
             // Update position
-            particle.position.x += particle.velocity.x * dt;
-            particle.position.y += particle.velocity.y * dt;
+            particle.position += particle.velocity * dt;
             
-            // Simple boundary handling
-            if particle.position.x < 0.0 || particle.position.x > self.width {
-                particle.velocity.x *= -0.8;
-                particle.position.x = particle.position.x.max(0.0).min(self.width);
+            // Handle boundary collision
+            if particle.position.x - particle.radius < 0.0 {
+                particle.position.x = particle.radius;
+                particle.velocity.x *= -COLLISION_DAMPING;
+            } else if particle.position.x + particle.radius > self.width {
+                particle.position.x = self.width - particle.radius;
+                particle.velocity.x *= -COLLISION_DAMPING;
             }
             
-            if particle.position.y < 0.0 || particle.position.y > self.height {
-                particle.velocity.y *= -0.8;
-                particle.position.y = particle.position.y.max(0.0).min(self.height);
+            if particle.position.y - particle.radius < 0.0 {
+                particle.position.y = particle.radius;
+                particle.velocity.y *= -COLLISION_DAMPING;
+            } else if particle.position.y + particle.radius > self.height {
+                particle.position.y = self.height - particle.radius;
+                particle.velocity.y *= -COLLISION_DAMPING;
             }
             
-            // Simple damping
-            particle.velocity.x *= 0.99;
-            particle.velocity.y *= 0.99;
+            // Apply damping
+            particle.velocity *= 0.99;
+            
+            // Update the particle in the vector
+            self.particles[i] = particle;
+        }
+    }
+    
+    fn check_particle_collision(&mut self, i: usize, j: usize) {
+        let dx = self.particles[i].position.x - self.particles[j].position.x;
+        let dy = self.particles[i].position.y - self.particles[j].position.y;
+        let distance = (dx * dx + dy * dy).sqrt();
+        
+        let min_distance = self.particles[i].radius + self.particles[j].radius;
+        
+        if distance < min_distance {
+            // Collision normal
+            let nx = dx / distance;
+            let ny = dy / distance;
+            
+            // Relative velocity
+            let dvx = self.particles[i].velocity.x - self.particles[j].velocity.x;
+            let dvy = self.particles[i].velocity.y - self.particles[j].velocity.y;
+            
+            // Impulse scalar
+            let impulse_scalar = 2.0 * (dvx * nx + dvy * ny) / 
+                (self.particles[i].mass + self.particles[j].mass);
+            
+            // Update velocities
+            let mut p1 = self.particles[i].clone();
+            let mut p2 = self.particles[j].clone();
+            
+            p1.velocity.x -= impulse_scalar * p2.mass * nx * COLLISION_DAMPING;
+            p1.velocity.y -= impulse_scalar * p2.mass * ny * COLLISION_DAMPING;
+            
+            p2.velocity.x += impulse_scalar * p1.mass * nx * COLLISION_DAMPING;
+            p2.velocity.y += impulse_scalar * p1.mass * ny * COLLISION_DAMPING;
+            
+            // Separate particles
+            let overlap = min_distance - distance;
+            p1.position.x += nx * overlap * 0.5;
+            p1.position.y += ny * overlap * 0.5;
+            
+            p2.position.x -= nx * overlap * 0.5;
+            p2.position.y -= ny * overlap * 0.5;
+            
+            // Update particles
+            self.particles[i] = p1;
+            self.particles[j] = p2;
+        }
+    }
+    
+    fn calculate_interaction_force(&self, i: usize, j: usize) -> Vec2 {
+        let p1 = &self.particles[i];
+        let p2 = &self.particles[j];
+        
+        let dx = p2.position.x - p1.position.x;
+        let dy = p2.position.y - p1.position.y;
+        let distance = (dx * dx + dy * dy).sqrt();
+        
+        // No interaction if too far
+        if distance > INTERACTION_RADIUS {
+            return Vec2::new(0.0, 0.0);
+        }
+        
+        // Normalized direction
+        let nx = dx / distance;
+        let ny = dy / distance;
+        
+        // Different interaction rules based on particle types
+        match (p1.particle_type, p2.particle_type) {
+            (ParticleType::Red, ParticleType::Red) => {
+                // Red-Red: Slight repulsion
+                let force_magnitude = -REPULSION_STRENGTH * (1.0 - distance / INTERACTION_RADIUS);
+                Vec2::new(nx * force_magnitude, ny * force_magnitude)
+            },
+            (ParticleType::Blue, ParticleType::Blue) => {
+                // Blue-Blue: Slight attraction
+                let force_magnitude = ATTRACTION_STRENGTH * (1.0 - distance / INTERACTION_RADIUS);
+                Vec2::new(nx * force_magnitude, ny * force_magnitude)
+            },
+            (ParticleType::Red, ParticleType::Blue) | (ParticleType::Blue, ParticleType::Red) => {
+                // Red-Blue: Strong attraction
+                let force_magnitude = ATTRACTION_STRENGTH * 1.5 * (1.0 - distance / INTERACTION_RADIUS);
+                Vec2::new(nx * force_magnitude, ny * force_magnitude)
+            }
         }
     }
     
